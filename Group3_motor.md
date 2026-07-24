@@ -186,4 +186,4 @@ typedef enum
 |---|---|---|---|
 | `EXTI15_10_IRQHandler()` | PC13 버튼의 falling/rising edge | `btn_flag` | `btn_flag`를 `1`로 설정 |
 | `USART2_IRQHandler()` | USART2 수신 인터럽트 | `uart_data`, `uart_flag` | 수신 문자를 저장하고 `uart_flag`를 `1`로 설정 |
-| `TIM4_IRQHandler()` | TIM4 3000ms 경과 | `timer_flag` | `timer_flag`를 `1`로 설정 |
+| `TIM5_IRQHandler()` | TIM5 3000ms 경과 | `timer_flag` | `timer_flag`를 `1`로 설정 |
