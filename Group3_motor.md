@@ -95,7 +95,7 @@
 
 ## 4. VARIABLE
 
-### 4-1. 열거형 및 구조체
+### 4-1. 열거형
 
 ```c
 typedef enum
@@ -112,13 +112,6 @@ typedef enum
     BTN_LONG_PRESSED,
     BTN_UART
 } BUTTON_EVENT;
-
-typedef struct Button
-{
-    BUTTON_EVENT event;
-    int pressed;
-    int long_pressed;
-} BUTTON;
 ```
 
 ### 4-2. GLOBAL VARIABLE
