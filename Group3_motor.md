@@ -88,8 +88,8 @@
 
 | 항목 | 설정값 |
 |---|---|
-| TIM4 기준 주파수 | 10 kHz |
-| TIM4 ARR | 3000 - 1 |
+| TIM5 기준 주파수 | 10 kHz |
+| TIM5 ARR | 3000 - 1 |
 | 길게 누름 설정값 | 3000 ms |
 | 인터럽트 | Update interrupt, IRQ 30 |
 
