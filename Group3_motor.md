@@ -53,6 +53,7 @@ flowchart LR
 
 ## 2. EVENT (BUTTON/UART)
 
+### 2-1. BUTTON/UART 이벤트
 | 이름 | 값 | 설명 |
 |---|:---:|---|
 | `EVT_NONE` | 0 | 이벤트 없음 / 이벤트 소비 완료 |
@@ -60,7 +61,73 @@ flowchart LR
 | `EVT_BTN_LONG` | 2 | 버튼 길게 눌림 (버튼이 눌린 채로 경과 시간 >= 3000ms) |
 | `EVT_UART` | 3 | UART로 문자 수신 (수신 문자는 ISR에서 Uart_Data_In에 저장) |
 
-## 3. GLOBAL VARIABLE
+### 2-2. 상태별 이벤트 처리표
+
+| 현재 상태 | 입력 이벤트/명령 | 다음 상태 | 수행 함수 | 전환 전 정지 지연 |
+|---|---|---|---|:---:|
+| `MOTOR_STOP` | 버튼 짧게 누름 | `MOTOR_CW` | `motor_cw()` | 없음 |
+| `MOTOR_STOP` | 버튼 길게 누름 | `MOTOR_STOP` | 없음 | 없음 |
+| `MOTOR_CW` | 버튼 짧게 누름 | `MOTOR_CCW` | `motor_stop_delay()` → `motor_ccw()` | 적용 |
+| `MOTOR_CW` | 버튼 길게 누름 | `MOTOR_STOP` | `motor_stop()` | 없음 |
+| `MOTOR_CCW` | 버튼 짧게 누름 | `MOTOR_CW` | `motor_stop_delay()` → `motor_cw()` | 적용 |
+| `MOTOR_CCW` | 버튼 길게 누름 | `MOTOR_STOP` | `motor_stop()` | 없음 |
+| 모든 상태 | UART `'f'` | `MOTOR_CW` | `motor_cw()` | 미적용 |
+| 모든 상태 | UART `'s'` | `MOTOR_STOP` | `motor_stop()` | 없음 |
+| 모든 상태 | UART `'r'` | `MOTOR_CCW` | `motor_ccw()` | 미적용 |
+| 모든 상태 | UART `'0'`~`'9'` | 현재 상태 유지 | `TIM5_Out_PWM_Generation()` | 해당 없음 |
+
+## 3. PWM 및 타이머
+
+### 3-1. TIM5 모터 PWM
+
+| 항목 | 설정값 |
+|---|---|
+| TIM5 기준 주파수 | 8 MHz |
+| PWM 주파수 | 10 kHz |
+| 출력 채널 | CH1, CH2 |
+| 카운터 모드 | Down counter |
+| 반복 모드 | Repeat |
+| 초기 Duty | 75% (`range = 5`) |
+| Duty 범위 | 50~95% |
+
+### 3-2. TIM4 버튼 3초 인지 타이머
+
+| 항목 | 설정값 |
+|---|---|
+| TIM4 Tick | 1000 μs |
+| TIM4 기준 주파수 | 1 kHz |
+| 길게 누름 설정값 | 3000 ms |
+| 인터럽트 | Update interrupt, IRQ 30 |
+
+## 4. VARIABLE
+
+### 4-1. 열거형 및 구조체
+
+```c
+typedef enum
+{
+    MOTOR_STOP,
+    MOTOR_CW,
+    MOTOR_CCW
+} MOTOR_STATE;
+
+typedef enum
+{
+    BTN_NONE,
+    BTN_SHORT_PRESSED,
+    BTN_LONG_PRESSED,
+    BTN_UART
+} BUTTON_EVENT;
+
+typedef struct Button
+{
+    BUTTON_EVENT event;
+    int pressed;
+    int long_pressed;
+} BUTTON;
+```
+
+### 4-2. GLOBAL VARIABLE
 
 | 이름 | Type | 초기값 | 역할 | 변경 시점 |
 |---|---|---|---|---|
@@ -74,9 +141,9 @@ flowchart LR
 | `uart_data` | volatile uint8_t | `0` | UART로 수신된 문자 | `USART2_IRQHandler()`에서 수신 시 갱신 |
 | `ms_count` | volatile uint32_t | `0` | 1ms 카운트 타이머 | `TIM4_IRQHandler()`에서 갱신 |
 
-## 4. METHOD
+## 5. METHOD
 
-### 4-1. 주요 METHOD
+### 5-1. 주요 METHOD
 
 | 이름 | 입력 | 출력 | 설명 | 호출 시점 |
 |---|---|---|---|---|
@@ -84,7 +151,7 @@ flowchart LR
 | `update_motor_state()` | `evt`, `motor_state`, `motor_speed` (전역 참조) | `new_motor_state`, `new_motor_speed` 갱신 | `evt`가 `EVT_BTN_SHORT`면 CW/CCW를 토글, `EVT_BTN_LONG`이면 `MOTOR_STOP`으로 전환. `EVT_UART`면 `uart_data`가 숫자인지 'f', 'r', 's'인지에 따라 `new_motor_speed` 또는 `new_motor_state`를 갱신. | main 루프, `evt != EVT_NONE`일 때만 호출 |
 | `drive_motor()` | `new_motor_state`, `new_motor_speed` (전역 참조) | GPIO 방향 설정, PWM Duty 반영, `motor_state`, `motor_speed` 갱신 | `new_motor_state`와 `motor_state`, `new_motor_speed`와 `motor_speed`를 비교하여 다를 때만 GPIO 방향을 설정하고 PWM Duty를 반영 | main 루프 |
 
-### 4-2. ISR 
+### 5-2. ISR 
 
 | 이름 | 출력 | 설명 | 호출 시점 |
 |---|---|---|---|
