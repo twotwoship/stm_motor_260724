@@ -4,4 +4,4 @@
 신유지, 이호연, 이양배, 한소영
 
 # 상위 계획서 파일명
-  **Group3_motor.md
+  * Group3_motor.md
