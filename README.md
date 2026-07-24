@@ -27,6 +27,7 @@
 
 신유지 : https://github.com/shinyuji  
 이호윤 : https://github.com/nooyoh  
+이양배 : https://github.com/twotwoship
 한소영 : https://github.com/hsy1030h-wq
 
 #### git : https://github.com/twotwoship/stm_motor_260724
