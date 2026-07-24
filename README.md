@@ -29,11 +29,4 @@
 이호윤 : https://github.com/nooyoh  
 한소영 : https://github.com/hsy1030h-wq
 
-보고서 제출 방법 AI시스템반도체SW개발_2기_Cotex_M4프로젝트
-
-1번 제출물
-_3팀(신유지,이호윤,이양배,한소영)_결과보고서.pdf
-
-2번 제출물
-_3팀(신유지,이호윤,이양배,한소영)_결과물.zip
-결과물 제출전 make clean
+#### git : https://github.com/twotwoship/stm_motor_260724
