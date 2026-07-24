@@ -21,11 +21,6 @@
 ---
 
 ##  개발 환경 (Environment)
-
-### Hardware
-* **Main Board:** STM32 M4 Board ( STM32F411RE )
-
-### Software & Tools
-* **Editor:** Visual Studio Code 
-
+* **Hardware:** STM32 M4 Board (STM32F411RE)
+* **Software & Tools:** Visual Studio Code
 ---
