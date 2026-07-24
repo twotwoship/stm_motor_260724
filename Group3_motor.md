@@ -30,11 +30,12 @@ flowchart LR
 
 ### 1-2. MOTOR STATE
 
-| 이름 | 값 | 설명 |
-|---|---|---|
-| `STOP` | `0` | 모터 정지 |
-| `CW` | `1` | 모터 정회전 |
-| `CCW` | `2` | 모터 역회전 |
+| 이름 | 값 | PA0 | PA1 | 설명 |
+|---|:---:|---|---|---|
+| `MOTOR_STOP` | 0 | GPIO LOW | GPIO LOW | 모터 정지 |
+| `MOTOR_CW` | 1 | GPIO LOW | TIM5_CH2 PWM | 소프트웨어 기준 정방향 회전 |
+| `MOTOR_CCW` | 2 | TIM5_CH1 PWM | GPIO LOW | 소프트웨어 기준 역방향 회전 |
+
 
 ### 1-3. MOTOR SPEED
 
@@ -158,3 +159,54 @@ typedef struct Button
 | `EXTI15_10_IRQHandler()` | `btn_flag` 갱신 | `btn_flag`를 1로 세팅 | PC13 USER KEY (falling edge, rising edge) 인터럽트 발생 |
 | `USART2_IRQHandler()` | `uart_flag` 갱신 | 입력 받은 문자를 `uart_data`에 저장하고, `uart_flag`를 1로 세팅 | USART2 인터럽트 발생  |
 | `TIM4_IRQHandler()` | `timer_flag` 갱신 | `timer_flag`를 1로 세팅 | 타이머 인터럽트(3000ms) 발생 |
+
+### 5-3. TIMER 제어
+
+| 함수 | 입력 값 | 출력 값 | 변경하는 변수 | 역할 |
+|---|---|---|---|---|
+| `TIM5_Out_Init()` | 없음 | 없음 (`void`) | `RCC->APB1ENR`, `TIM5->CCMR1`, `TIM5->CCER` | TIM5_CH1·CH2 PWM 출력 기능 초기화 |
+| `TIM5_Out_PWM_Generation(int range)` | `range` 0~9 | 없음 (`void`) | `TIM5->PSC`, `ARR`, `CCR1`, `CCR2`, `EGR`, `CR1` | 10 kHz PWM과 50~95% Duty 설정 |
+| `TIM5_Out_Stop()` | 없음 | 없음 (`void`) | `TIM5->CR1`의 CEN 비트 | TIM5 정지. 현재 메인 흐름에서는 호출하지 않음 |
+| `TIM4_Repeat_Interrupt_Enable(int en, int time)` | `en`, `time`(ms) | 없음 (`void`) | RCC·TIM4 관련 레지스터와 NVIC IRQ 30 설정 | 지정 시간으로 TIM4 Update 인터럽트 시작 또는 비활성화 |
+| `TIM4_Stop()` | 없음 | 없음 (`void`) | `TIM4->CR1`, `TIM4->DIER`, `TIM4->SR`, NVIC IRQ 30 Pending 상태 | TIM4와 Update 인터럽트를 정지하고 Pending 상태 정리 |
+
+### 5-4. 모터 설정
+
+| 함수 | 입력 값 | 출력 값 | 변경하는 변수 | 역할 |
+|---|---|---|---|---|
+| `motor_init()` | 없음 | 없음 (`void`) | `RCC->AHB1ENR`, `GPIOA->MODER`, `OTYPER`, `ODR`, `motor_state` | 모터 출력 LOW 및 정지 상태 초기화 |
+| `PAx_PWM_set(int pin_num)` | `pin_num` 0 또는 1 | 없음 (`void`) | `GPIOA->MODER`, `GPIOA->AFR[0]` | 지정 핀을 AF2 PWM 출력으로 변경 |
+| `PAx_GPIO_set(int pin_num)` | `pin_num` 0 또는 1 | 없음 (`void`) | `GPIOA->MODER`, `GPIOA->OTYPER`, `GPIOA->ODR` | 지정 핀을 Push-pull GPIO LOW로 변경 |
+| `motor_stop()` | 없음 | 없음 (`void`) | `GPIOA->MODER`, `GPIOA->ODR`, `motor_state` | PA0·PA1을 LOW로 설정하고 모터 정지 |
+| `motor_cw()` | 없음 | 없음 (`void`) | `GPIOA->MODER`, `OTYPER`, `ODR`, `AFR[0]`, `motor_state` | PA0은 LOW, PA1은 PWM으로 설정하여 정방향 출력 |
+| `motor_ccw()` | 없음 | 없음 (`void`) | `GPIOA->MODER`, `OTYPER`, `ODR`, `AFR[0]`, `motor_state` | PA1은 LOW, PA0은 PWM으로 설정하여 역방향 출력 |
+| `motor_stop_delay()` | 없음 | 없음 (`void`) | `GPIOA->MODER`, `GPIOA->ODR`, `motor_state` | 모터를 정지하고 Busy-wait하여 버튼 방향 전환 전 정지 구간 제공 |
+| `motor_handle()` | `motor_state`, `btn.event`, `Uart_Data` | 없음 (`void`) | `motor_state`, `btn.event`, 모터 출력 관련 GPIOA 레지스터 | 현재 상태와 입력 이벤트에 따라 모터를 제어하고 처리한 이벤트 소거 |
+
+### 5-5. 버튼 입력 및 처리
+
+| 함수 | 입력 값 | 출력 값 | 변경하는 변수 | 역할 |
+|---|---|---|---|---|
+| `button_init()` | 없음 | 없음 (`void`) | `RCC->AHB1ENR`, `GPIOC->MODER`, `GPIOC->PUPDR`, `btn.event`, `btn.pressed`, `btn.long_pressed` | PC13 입력·Pull-up과 버튼 상태 초기화 |
+| `button_scan()` | `Key_event_generated`, PC13 입력, `btn.long_pressed` | 없음 (`void`) | `Key_event_generated`, `btn.event`, `btn.pressed`, `btn.long_pressed`, TIM4 관련 레지스터 | 버튼 누름·해제를 판정하고 짧게 누름 이벤트 생성 |
+| `button_check_long_press()` | `TIM4_Expired`, `btn.pressed` | 없음 (`void`) | `TIM4_Expired`, `btn.event`, `btn.long_pressed`, TIM4 관련 레지스터 | TIM4 만료 시 버튼이 계속 눌렸는지 확인하고 길게 누름 이벤트 생성 |
+| `button_processing()` | 버튼·TIM4 전역 상태 | 없음 (`void`) | 하위 함수를 통해 버튼 상태, 이벤트 플래그, TIM4 관련 레지스터 변경 | 버튼 스캔과 길게 누름 판정을 순서대로 호출 |
+| `Key_Get_Pressed()` | `GPIOC->IDR`의 PC13 값 | `int`: 눌림이면 1, 아니면 0 | 없음 | PC13이 LOW인지 확인 |
+| `Key_Get_Released()` | `GPIOC->IDR`의 PC13 값 | `int`: 해제이면 1, 아니면 0 | 없음 | PC13이 HIGH인지 확인 |
+| `Key_ISR_Enable(int en)` | `en` | 없음 (`void`) | RCC·GPIOC·SYSCFG·EXTI 관련 레지스터와 NVIC IRQ 40 설정 | EXTI13 양쪽 edge 인터럽트 활성화 또는 NVIC 인터럽트 비활성화 |
+
+### 5-6. UART
+
+| 함수 | 입력 값 | 출력 값 | 변경하는 변수 | 역할 |
+|---|---|---|---|---|
+| `uart_processing()` | `Uart_Data_In`, `Uart_Data` | 없음 (`void`) | `Uart_Data_In`, `btn.event`, TIM5 PWM 관련 레지스터 | 숫자 명령은 PWM Duty로, `f/s/r` 명령은 모터 이벤트로 변환 |
+| `Uart2_Init(int baud)` | `baud` | 없음 (`void`) | RCC·GPIOA·USART2 관련 레지스터 | PA2·PA3를 AF7로 설정하고 USART2 초기화 |
+| `Uart2_RX_Interrupt_Enable(int en)` | `en` | 없음 (`void`) | `USART2->CR1`의 RXNEIE 비트, NVIC IRQ 38 설정 | USART2 수신 인터럽트 활성화 또는 비활성화 |
+
+### 5-7. IRQ
+
+| ISR | 발생 원인 | ISR 처리 | 후속 처리 |
+|---|---|---|---|
+| `EXTI15_10_IRQHandler()` | PC13 Falling/Rising edge | `Key_event_generated = 1`, EXTI/NVIC Pending clear | `button_scan()`이 현재 핀 상태를 판독 |
+| `USART2_IRQHandler()` | USART2 RXNE | `USART2->DR`을 `Uart_Data`에 저장, `Uart_Data_In = 1` | `uart_processing()`이 명령 해석 |
+| `TIM4_IRQHandler()` | TIM4 Update | TIM4/NVIC Pending clear, `TIM4_Expired = 1` | `button_check_long_press()`가 길게 누름 판정 |
