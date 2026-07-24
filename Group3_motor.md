@@ -29,14 +29,15 @@ flowchart LR
 | `CW` | `1` | 모터 정회전 |
 | `CCW` | `2` | 모터 역회전 |
 
+
 ### 1-3. EVENT STATE
 
 | 이름 | 값 | 설명 |
-|---|---|---|
-| `EVT_BUTTON_NONE` | `0` | 안 눌림 |
-| `BUTTON_SHORT` | `1` | 짧게 눌림 |
-| `BUTTON_LONG` | `2` | 길게 눌림 |
-| `BUTTON_LONG` | `2` | 길게 눌림 |
+|---|:---:|---|
+| `EVT_NONE` | 0 | 이벤트 없음 / 이벤트 소비 완료 |
+| `EVT_BTN_SHORT` | 1 | 버튼 짧게 눌림 (3초 미만) |
+| `EVT_BTN_LONG` | 2 | 버튼 길게 눌림 (3초 이상) |
+| `EVT_UART_RX` | 3 | UART로 1바이트 수신 (payload에 수신 문자 포함) |
 
 
 ### 1-4. SPEED STATE
@@ -58,37 +59,48 @@ flowchart LR
 
 ### 2-1. BUTTON EVENT
 
-| 이름 | 값 | 발생 조건 | 감지 방식 | 감지 위치 |
-|---|---|---|---|---|
-| `BUTTON_NONE` | 0 | 초기 상태 / 이벤트 소비 완료 |  | | 
-| `BUTTON_SHORT` | 1 | 누른 후 3초 미만에 뗌 | 타이머 인터럽트 | |
-| `BUTTON_LONG` | 2 | 누른 채로 3초 이상 유지 | 읽은 직후 즉시 리셋 | | 
+| 이름 | 값 | 설명 | 발생 조건 |
+|---|---|---|---|
+| `BUTTON_NONE` | 0 | 이벤트 없음 | 아래 세 조건 모두 미충족 |  
+| `BUTTON_SHORT` | 1 | 버튼 짧게 눌림 | 버튼 눌린 시점, 눌린 시간 < 3000ms | 
+| `BUTTON_LONG` | 2 | 버튼 길게 눌림 | 버튼이 눌린 채로 경과 시간 >= 3000ms |  
 
 ### 2-2. UART EVENT
 
 | 이름 | 값 | 발생 조건 | 
-|---|---:|---|---|
+|---|---|---|
 | UART_SPEED | `'0'` ~ `'9'` | UART로 해당 문자를 수신 | 
 | UART_FORWARD | `'F'` | UART로 해당 문자를 수신 | 
 | UART_REVERSE | `'R'` | UART로 해당 문자를 수신 | 
 | UART_STOP | `'S'` | UART로 해당 문자를 수신 | 
 
-## 3. VARIABLE
+## 3. GLOBAL VARIABLE
 
 | 이름 | Type | Scope | 초기값 | 역할 | 변경 시점 |
 |---|---|---|---|---|---|
-| `btn_event` | enum | | `BUTTON_NONE` |  | |
-| `motor_state` | enum | | `STOP` | | |
+| `event` | `event_t` | 전역 | `BUTTON_NONE` | 현재 이벤트 저장 | |
+| `motor_state` | `motor_state_t` | 전역 | `MOTOR_STOP` | 현재 모터 회전 방향 / 정지 상태 | `update_motor_state()`에서 `EVT_BTN_SHORT` / `EVT_BTN_LONG` / `EVT_UART_RX` 처리 시 직접 갱신 |
 | `new_motor_state` | int | | `STOP` | | |
-| `UART_flag` | int | | `0` | | |
-| `speed` | int | | `50` | | |
+| `uart_flag` | int | | `0` | | |
+| `motor_speed` | uint8_t | 전역 | `5` | 현재 PWM Duty 레벨 (0~9) | `update_motor_state()`에서 `EVT_UART_RX`의 숫자 payload 처리 시 갱신 |
+| `btn_flag` | volatile uint8_t | 전역 | 0 | 버튼 edge(falling/rising) 발생 여부 | EXTI_Button_ISR에서 1로 세팅 → check_event()에서 읽은 직후 0으로 리셋 |
+| `uart_flag` | volatile uint8_t | 전역 | `0` | UART 1바이트 수신 여부 | `UART_ISR`에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
+| `uart_Data_In` | volatile uint8_t | 전역 | `0` | UART로 수신된 문자 | `UART_ISR`에서 수신 시 갱신 |
+
 | `new_speed` | int | | `50` | | |
+| `new_speed` | int | | `50` | | |
+
+
+
+
+
+
+
+
 
 ## 4. METHOD
 
 | 이름 | 입력 | 출력 | 설명 | 호출 시점 |
 |---|---|---|---|---|
 | | | | | |
-=======
-dd
->>>>>>> 3f750a0980eee369b7bf31ad31fa5a1a8cfecaf7
+
