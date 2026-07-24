@@ -137,18 +137,60 @@ typedef struct Button
 
 ## 5. METHOD
 
-### 5-1. 주요 METHOD
+### 5-1. 주요 METHOD 요약
 
-| 이름 | 입력 | 출력 | 설명 | 호출 시점 |
+| 함수 | 입력 값 | 출력 값 | 변경 변수 | 역할 |
 |---|---|---|---|---|
-| `check_event()` | `btn_flag`, `uart_flag` (전역 참조) | `button_event` 갱신 | `btn_flag`가 세워져 있으면 핀 상태로 falling/rising을 판별해 `EVT_BTN_SHORT` 여부를 계산하고, 눌린 채로 3초가 지나면 `EVT_BTN_LONG`을 생성. `uart_flag`가 세워져 있으면 `EVT_UART`를 생성. | main 루프 |
-| `update_motor_state()` | `evt`, `motor_state`, `motor_speed` (전역 참조) | `new_motor_state`, `new_motor_speed` 갱신 | `button_event`가 `EVT_BTN_SHORT`면 CW/CCW를 토글, `EVT_BTN_LONG`이면 `MOTOR_STOP`으로 전환. `EVT_UART`면 `uart_data`가 숫자인지 'f', 'r', 's'인지에 따라 `new_motor_speed` 또는 `new_motor_state`를 갱신. | main 루프, `button_event != EVT_NONE`일 때만 호출 |
-| `drive_motor()` | `new_motor_state`, `new_motor_speed` (전역 참조) | GPIO 방향 설정, PWM Duty 반영, `motor_state`, `motor_speed` 갱신 | `new_motor_state`와 `motor_state`, `new_motor_speed`와 `motor_speed`를 비교하여 다를 때만 GPIO 방향을 설정하고 PWM Duty를 반영 | main 루프 |
+| `check_event()` | `btn_flag`, `uart_flag`, `timer_flag` | 없음 (`void`) | `button_event`, 각 인터럽트 플래그 | 버튼 및 UART 이벤트 판별 |
+| `update_motor_state()` | `button_event`, `motor_state`, `motor_speed`, `uart_data` | 없음 (`void`) | `new_motor_state`, `new_motor_speed` | 이벤트를 목표 모터 상태로 변환 |
+| `drive_motor()` | `new_motor_state`, `new_motor_speed` | 없음 (`void`) | `motor_state`, `motor_speed` | 모터 방향과 PWM Duty를 하드웨어에 반영 |
 
-### 5-2. ISR 
+### 5-2. 주요 METHOD 상세 동작
 
-| 이름 | 출력 | 설명 | 호출 시점 |
+#### 5-2-1. `check_event()`
+
+버튼, UART 및 타이머 인터럽트 플래그를 확인하여 다음 이벤트를 생성한다.
+
+* `btn_flag`가 설정되면 PC13 핀 상태를 확인하여 버튼의 눌림과 해제를 판별한다.
+* 버튼이 3초 전에 해제되면 `EVT_BTN_SHORT`를 생성한다.
+* 버튼이 눌린 상태로 3초가 지나면 `EVT_BTN_LONG`을 생성한다.
+* `uart_flag`가 설정되면 `EVT_UART`를 생성한다.
+* 확인이 끝난 인터럽트 플래그는 `0`으로 초기화한다.
+
+호출 시점: 메인 루프에서 반복 호출한다.
+
+#### 5-2-2. `update_motor_state()`
+
+`button_event`에 따라 목표 모터 상태와 목표 속도를 결정한다.
+
+* `EVT_BTN_SHORT`
+  * `MOTOR_STOP` 상태이면 `MOTOR_CW`로 전환한다.
+  * `MOTOR_CW`와 `MOTOR_CCW` 상태에서는 회전 방향을 전환한다.
+* `EVT_BTN_LONG`
+  * `new_motor_state`를 `MOTOR_STOP`으로 변경한다.
+* `EVT_UART`
+  * `'f'`: `new_motor_state`를 `MOTOR_CW`로 변경한다.
+  * `'r'`: `new_motor_state`를 `MOTOR_CCW`로 변경한다.
+  * `'s'`: `new_motor_state`를 `MOTOR_STOP`으로 변경한다.
+  * `'0'`~`'9'`: `new_motor_speed`를 해당 Duty 단계로 변경한다.
+
+호출 시점: 메인 루프에서 `button_event != EVT_NONE`일 때 호출한다.
+
+#### 5-2-3. `drive_motor()`
+
+현재 상태와 목표 상태를 비교하여 변경된 값만 하드웨어에 반영한다.
+
+* `new_motor_state`와 `motor_state`가 다르면 GPIO 방향을 설정한다.
+* 회전 방향이 반대로 변경될 때는 모터를 정지시킨 후 대기시간을 적용한다.
+* `new_motor_speed`와 `motor_speed`가 다르면 PWM Duty를 변경한다.
+* 적용이 끝나면 `motor_state`와 `motor_speed`를 갱신한다.
+
+호출 시점: 메인 루프에서 반복 호출한다.
+
+### 5-3. ISR
+
+| ISR | 발생 조건 | 변경 변수 | 처리 내용 |
 |---|---|---|---|
-| `EXTI15_10_IRQHandler()` | `btn_flag` 갱신 | `btn_flag`를 1로 세팅 | PC13 USER KEY (falling edge, rising edge) 인터럽트 발생 |
-| `USART2_IRQHandler()` | `uart_flag` 갱신 | 입력 받은 문자를 `uart_data`에 저장하고, `uart_flag`를 1로 세팅 | USART2 인터럽트 발생  |
-| `TIM5_IRQHandler()` | `timer_flag` 갱신 | `timer_flag`를 1로 세팅 | 타이머 인터럽트(3000ms) 발생 |
+| `EXTI15_10_IRQHandler()` | PC13 버튼의 falling/rising edge | `btn_flag` | `btn_flag`를 `1`로 설정 |
+| `USART2_IRQHandler()` | USART2 수신 인터럽트 | `uart_data`, `uart_flag` | 수신 문자를 저장하고 `uart_flag`를 `1`로 설정 |
+| `TIM4_IRQHandler()` | TIM4 3000ms 경과 | `timer_flag` | `timer_flag`를 `1`로 설정 |
