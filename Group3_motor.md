@@ -139,7 +139,7 @@ typedef struct Button
 | `btn_flag` | volatile uint8_t | `0` | 버튼 인터럽트 (falling edge/rising edge) 발생 여부 | Button_ISR에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
 | `uart_flag` | volatile uint8_t | `0` | UART 인터럽트 발생 여부 | `USART2_IRQHandler()`에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
 | `uart_data` | volatile uint8_t | `0` | UART로 수신된 문자 | `USART2_IRQHandler()`에서 수신 시 갱신 |
-| `ms_count` | volatile uint32_t | `0` | 1ms 카운트 타이머 | `TIM4_IRQHandler()`에서 갱신 |
+| `timer_flag` | volatile uint8_t | `0` | 타이머 인터럽트 발생 여부  | `TIM4_IRQHandler()`에서 갱신 |
 
 ## 5. METHOD
 
@@ -157,4 +157,4 @@ typedef struct Button
 |---|---|---|---|
 | `EXTI15_10_IRQHandler()` | `btn_flag` 갱신 | `btn_flag`를 1로 세팅 | PC13 USER KEY (falling edge, rising edge) 인터럽트 발생 |
 | `USART2_IRQHandler()` | `uart_flag` 갱신 | 입력 받은 문자를 `uart_data`에 저장하고, `uart_flag`를 1로 세팅 | USART2 인터럽트 발생  |
-| `TIM4_IRQHandler()` | `ms_count` 갱신 | `ms_count`를 1 증가 | 타이머 인터럽트(1ms) 발생 |
+| `TIM4_IRQHandler()` | `timer_flag` 갱신 | `timer_flag`를 1로 세팅 | 타이머 인터럽트(3000ms) 발생 |
