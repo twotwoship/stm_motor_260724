@@ -60,21 +60,32 @@ flowchart LR
 
 ## 3. GLOBAL VARIABLE
 
-| 이름 | Type | Scope | 초기값 | 역할 | 변경 시점 |
-|---|---|---|---|---|---|
-| `evt` | `event_t` | 전역 | `EVT_NONE` | 현재 이벤트 저장 | 인터럽트 발생시`check_event()` 에서 갱신|
-| `motor_state` | `motor_state_t` | 전역 | `MOTOR_STOP` | 현재 모터 상태 저장 | `drive_motor()`에서 모터 상태 변경 시 갱신 |
-| `new_motor_state` | `motor_state_t` | 전역 | `MOTOR_STOP` | 새로운 모터 회전 저장 | `update_motor_state()`에서 이벤트 처리 시 갱신 |
-| `motor_speed` | uint8_t | 전역 | `5` | 현재 PWM Duty 레벨 (0~9) | `drive_motor()`에서 모터 상태 변경 시 갱신 |
-| `new_motor_speed` | uint8_t | 전역 | `5` | 새로운 PWM Duty 레벨 (0~9) | `update_motor_state()`에서 이벤트 처리 시 갱신 |
-| `btn_flag` | volatile uint8_t | 전역 | `0` | 버튼 인터럽트 (falling edge/rising edge) 발생 여부 | Button_ISR에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
-| `uart_flag` | volatile uint8_t | 전역 | `0` | UART 인터럽트 발생 여부 | `UART_ISR`에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
-| `uart_data` | volatile uint8_t | 전역 | `0` | UART로 수신된 문자 | `UART_ISR`에서 수신 시 갱신 |
+| 이름 | Type | 초기값 | 역할 | 변경 시점 |
+|---|---|---|---|---|
+| `evt` | `event_t` | `EVT_NONE` | 현재 이벤트 저장 | BUTTON, UART 인터럽트 발생시`check_event()` 에서 갱신|
+| `motor_state` | `motor_state_t` | `MOTOR_STOP` | 현재 모터 상태 저장 | `drive_motor()`에서 모터 상태 변경 시 갱신 |
+| `new_motor_state` | `motor_state_t` | `MOTOR_STOP` | 새로운 모터 회전 저장 | `update_motor_state()`에서 이벤트 처리 시 갱신 |
+| `motor_speed` | uint8_t | `5` | 현재 PWM Duty 레벨 (0~9) | `drive_motor()`에서 모터 상태 변경 시 갱신 |
+| `new_motor_speed` | uint8_t | `5` | 새로운 PWM Duty 레벨 (0~9) | `update_motor_state()`에서 이벤트 처리 시 갱신 |
+| `btn_flag` | volatile uint8_t | `0` | 버튼 인터럽트 (falling edge/rising edge) 발생 여부 | Button_ISR에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
+| `uart_flag` | volatile uint8_t | `0` | UART 인터럽트 발생 여부 | `USART2_IRQHandler()`에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
+| `uart_data` | volatile uint8_t | `0` | UART로 수신된 문자 | `USART2_IRQHandler()`에서 수신 시 갱신 |
+| `ms_count` | volatile uint32_t | `0` | 1ms 카운트 타이머 | `TIM4_IRQHandler()`에서 갱신 |
 
 ## 4. METHOD
+
+### 4-1. 주요 METHOD
 
 | 이름 | 입력 | 출력 | 설명 | 호출 시점 |
 |---|---|---|---|---|
 | `check_event()` | `btn_flag`, `uart_flag` (전역 참조) | `evt` 갱신 | `btn_flag`가 세워져 있으면 핀 상태로 falling/rising을 판별해 `EVT_BTN_SHORT` 여부를 계산하고, 눌린 채로 3초가 지나면 `EVT_BTN_LONG`을 생성. `uart_flag`가 세워져 있으면 `EVT_UART`를 생성. | main 루프 |
 | `update_motor_state()` | `evt`, `motor_state`, `motor_speed` (전역 참조) | `new_motor_state`, `new_motor_speed` 갱신 | `evt`가 `EVT_BTN_SHORT`면 CW/CCW를 토글, `EVT_BTN_LONG`이면 `MOTOR_STOP`으로 전환. `EVT_UART`면 `uart_data`가 숫자인지 'f', 'r', 's'인지에 따라 `new_motor_speed` 또는 `new_motor_state`를 갱신. | main 루프, `evt != EVT_NONE`일 때만 호출 |
 | `drive_motor()` | `new_motor_state`, `new_motor_speed` (전역 참조) | GPIO 방향 설정, PWM Duty 반영, `motor_state`, `motor_speed` 갱신 | `new_motor_state`와 `motor_state`, `new_motor_speed`와 `motor_speed`를 비교하여 다를 때만 GPIO 방향을 설정하고 PWM Duty를 반영 | main 루프 |
+
+### 4-2. ISR 
+
+| 이름 | 출력 | 설명 | 호출 시점 |
+|---|---|---|---|
+| `EXTI15_10_IRQHandler()` | `btn_flag` 갱신 | `btn_flag`를 1로 세팅 | PC13 USER KEY (falling edge, rising edge) 인터럽트 발생 |
+| `USART2_IRQHandler()` | `uart_flag` 갱신 | 입력 받은 문자를 `uart_data`에 저장하고, `uart_flag`를 1로 세팅 | USART2 인터럽트 발생  |
+| `TIM4_IRQHandler()` | `ms_count` 갱신 | `ms_count`를 1 증가 | 타이머 인터럽트(1ms) 발생 |
