@@ -24,3 +24,8 @@
 * **Hardware:** STM32 M4 Board (STM32F411RE)
 * **Software & Tools:** Visual Studio Code
 ---
+
+
+신유지 : https://github.com/shinyuji
+이호연 : https://github.com/nooyoh
+한소영 : 
