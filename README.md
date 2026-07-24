@@ -25,7 +25,6 @@
 * **Software & Tools:** Visual Studio Code
 ---
 
-
-> 신유지 : https://github.com/shinyuji
-> 이호연 : https://github.com/nooyoh
-> 한소영 : 
+* 신유지 : https://github.com/shinyuji
+* 이호연 : https://github.com/nooyoh
+* 한소영 : 
