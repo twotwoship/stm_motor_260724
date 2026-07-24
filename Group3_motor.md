@@ -59,16 +59,16 @@
 
 | 현재 상태 | 입력 이벤트/명령 | 다음 상태 | 수행 함수 | 전환 전 정지 지연 |
 |---|---|---|---|:---:|
-| `MOTOR_STOP` | 버튼 짧게 누름 | `MOTOR_CW` | `motor_cw()` | 없음 |
-| `MOTOR_STOP` | 버튼 길게 누름 | `MOTOR_STOP` | 없음 | 없음 |
-| `MOTOR_CW` | 버튼 짧게 누름 | `MOTOR_CCW` | `motor_stop_delay()` → `motor_ccw()` | 적용 |
-| `MOTOR_CW` | 버튼 길게 누름 | `MOTOR_STOP` | `motor_stop()` | 없음 |
-| `MOTOR_CCW` | 버튼 짧게 누름 | `MOTOR_CW` | `motor_stop_delay()` → `motor_cw()` | 적용 |
-| `MOTOR_CCW` | 버튼 길게 누름 | `MOTOR_STOP` | `motor_stop()` | 없음 |
-| 모든 상태 | UART `'f'` | `MOTOR_CW` | `motor_cw()` | 미적용 |
-| 모든 상태 | UART `'s'` | `MOTOR_STOP` | `motor_stop()` | 없음 |
-| 모든 상태 | UART `'r'` | `MOTOR_CCW` | `motor_ccw()` | 미적용 |
-| 모든 상태 | UART `'0'`~`'9'` | 현재 상태 유지 | `TIM5_Out_PWM_Generation()` | 해당 없음 |
+| `STOP` | 버튼 짧게 누름 | `CW` | `Motor_CW()` | 없음 |
+| `STOP` | 버튼 길게 누름 | `STOP` | 없음 | 없음 |
+| `CW` | 버튼 짧게 누름 | `CCW` | `Motor_Wait()` → `Motor_CCW()` | 적용 |
+| `CW` | 버튼 길게 누름 | `STOP` | `Motor_Stop()` | 없음 |
+| `CCW` | 버튼 짧게 누름 | `CW` | `Motor_Wait()` → `Motor_CW()` | 적용 |
+| `CCW` | 버튼 길게 누름 | `STOP` | `Motor_Stop()` | 없음 |
+| 모든 상태 | UART `'f'` | `CW` | `Motor_CW()` | 미적용 |
+| 정지 상태 제외 모든 상태 | UART `'s'` | `STOP` | `Motor_Stop()` | 없음 |
+| 모든 상태 | UART `'r'` | `CCW` | `Motor_CCW()` | 미적용 |
+| 정지 상태 제외 모든 상태 | UART `'0'`~`'9'` | 현재 상태 유지 | `TIM5_Out_PWM_Generation()` | 해당 없음 |
 
 ## 3. PWM 및 타이머
 
@@ -76,7 +76,7 @@
 
 | 항목 | 설정값 |
 |---|---|
-| TIM5 기준 주파수 | 96 MHz |
+| TIM2 기준 주파수 | 96 MHz |
 | PWM 주파수 | 1 kHz |
 | 출력 채널 | CH1, CH2 |
 | 카운터 모드 | Down counter |
@@ -89,9 +89,10 @@
 | 항목 | 설정값 |
 |---|---|
 | TIM5 기준 주파수 | 10 kHz |
-| TIM5 ARR | 3000 - 1 |
+| TIM5 ARR | 3000 * 10 - 1 |
 | 길게 누름 설정값 | 3000 ms |
-| 인터럽트 | Update interrupt, IRQ 30 |
+| 원샷 모드 | One-pulse|
+| 인터럽트 | Update interrupt, IRQ 50 |
 
 ## 4. VARIABLE
 
@@ -100,34 +101,34 @@
 ```c
 typedef enum
 {
-    MOTOR_STOP,
-    MOTOR_CW,
-    MOTOR_CCW
-} MOTOR_STATE;
+    STOP,
+    CW,
+    CCW
+} MotorState_t;
 
 typedef enum
 {
-    BTN_NONE,
-    BTN_SHORT_PRESSED,
-    BTN_LONG_PRESSED,
-    BTN_UART
-} BUTTON_EVENT;
+    EVT_NONE,
+    EVT_BTN_SHORT,
+    EVT_BTN_LONG,
+    EVT_UART
+} Event_t;
 ```
 
 ### 4-2. GLOBAL VARIABLE
 
 | 이름 | Type | 초기값 | 역할 | 변경 시점 |
 |---|---|---|---|---|
-| `button_event` | `event_t` | `EVT_NONE` | 현재 이벤트 저장 | BUTTON, UART 인터럽트 발생시`check_event()` 에서 갱신|
-| `motor_state` | `motor_state_t` | `MOTOR_STOP` | 현재 모터 상태 저장 | `drive_motor()`에서 모터 상태 변경 시 갱신 |
-| `new_motor_state` | `motor_state_t` | `MOTOR_STOP` | 새로운 모터 회전 저장 | `update_motor_state()`에서 이벤트 처리 시 갱신 |
-| `motor_speed` | `int` | `5` | 현재 PWM Duty 레벨 (0~9) | `drive_motor()`에서 모터 상태 변경 시 갱신 |
-| `new_motor_speed` | `int` | `5` | 새로운 PWM Duty 레벨 (0~9) | `update_motor_state()`에서 이벤트 처리 시 갱신 |
+| `event` | `event_t` | `EVT_NONE` | 현재 이벤트 저장 | BUTTON, UART 인터럽트 발생시`check_event()` 에서 갱신|
+| `motor_state` | `motor_state_t` | `STOP` | 현재 모터 상태 저장 | `drive_motor()`에서 모터 상태 변경 시 갱신 |
+| `new_motor_state` | `motor_state_t` | `STOP` | 새로운 모터 회전 저장 | `update_motor_state()`에서 이벤트 처리 시 갱신 |
+| `motor_speed` | `int` | `50` | 현재 PWM Duty 값 저장 | `drive_motor()`에서 모터 상태 변경 시 갱신 |
+| `new_motor_speed` | `int` | `50` | 새로운 PWM Duty 값 저장 | `update_motor_state()`에서 이벤트 처리 시 갱신 |
 | `Key_Pressed` | `volatile int` | `0` | 버튼 인터럽트 (falling edge) 발생 여부 | `EXTI15_10_IRQHandler()`에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
 | `Key_released` | `volatile int` | `0` | 버튼 인터럽트 (rising edge) 발생 여부 | `EXTI15_10_IRQHandler()`에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
 | `uart_flag` | `volatile unsigned char` | `0` | UART 인터럽트 발생 여부 | `USART2_IRQHandler()`에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
 | `uart_data` | `volatile unsigned char` | `0` | UART로 수신된 문자 | `USART2_IRQHandler()`에서 수신 시 갱신 |
-| `timer_flag` | `volatile uint8_t` | `0` | 타이머 인터럽트 발생 여부  | `TIM4_IRQHandler()`에서 갱신 |
+
 
 ## 5. METHOD
 
@@ -135,18 +136,18 @@ typedef enum
 
 | 함수 | 입력 값 | 출력 값 | 변경 변수 | 역할 |
 |---|---|---|---|---|
-| `check_event()` | `Key_Pressed`, `Key_Released`,`uart_flag`, `timer_flag` | 없음 (`void`) | `button_event`, 각 인터럽트 플래그 | 버튼 및 UART 이벤트 판별 |
-| `update_motor_state()` | `button_event`, `motor_state`, `motor_speed`, `uart_data` | 없음 (`void`) | `new_motor_state`, `new_motor_speed` | 이벤트를 목표 모터 상태로 변환 |
-| `drive_motor()` | `new_motor_state`, `new_motor_speed` | 없음 (`void`) | `motor_state`, `motor_speed` | 모터 방향과 PWM Duty를 하드웨어에 반영 |
+| `Check_event()` | `Key_Pressed`, `Key_Released`,`uart_flag` | 없음 (`void`) | `event`, 각 인터럽트 플래그 | 버튼 및 UART 이벤트 판별 |
+| `Update_motor_state()` | `event`, `motor_state`, `motor_speed`, `uart_data` | 없음 (`void`) | `new_motor_state`, `new_motor_speed` | 이벤트를 목표 모터 상태로 변환 |
+| `Drive_motor()` | `new_motor_state`, `new_motor_speed` | 없음 (`void`) | `motor_state`, `motor_speed` | 모터 방향과 PWM Duty를 하드웨어에 반영 |
 
 ### 5-2. 주요 METHOD 상세 동작
 
-#### 5-2-1. `check_event()`
+#### 5-2-1. `Check_event()`
 
 버튼, UART 및 타이머 인터럽트 플래그를 확인하여 다음 이벤트를 생성한다.
 
-* `Key_Pressed`가 설정되면 PC13 핀 상태를 확인하여 버튼의 falling edge를 판별한다.
-* `Key_Released`가 설정되면 PC13 핀 상태를 확인하여 버튼의 rising edge를 판별한다.
+* `Key_Pressed`가 설정되면 PC13 핀 상태를 확인하여 버튼의 Falling edge를 판별한다.
+* `Key_Released`가 설정되면 PC13 핀 상태를 확인하여 버튼의 Rising edge를 판별한다.
 * 버튼이 3초 전에 해제되면 `EVT_BTN_SHORT`를 생성한다.
 * 버튼이 눌린 상태로 3초가 지나면 `EVT_BTN_LONG`을 생성한다.
 * `uart_flag`가 설정되면 `EVT_UART`를 생성한다.
@@ -154,24 +155,24 @@ typedef enum
 
 호출 시점: 메인 루프에서 반복 호출한다.
 
-#### 5-2-2. `update_motor_state()`
+#### 5-2-2. `Update_motor_state()`
 
-`button_event`에 따라 목표 모터 상태와 목표 속도를 결정한다.
+`event`에 따라 목표 모터 상태와 목표 속도를 결정한다.
 
 * `EVT_BTN_SHORT`
-  * `MOTOR_STOP` 상태이면 `MOTOR_CW`로 전환한다.
-  * `MOTOR_CW`와 `MOTOR_CCW` 상태에서는 회전 방향을 전환한다.
+  * `STOP` 상태이면 `CW`로 전환한다.
+  * `CW`와 `CCW` 상태에서는 회전 방향을 전환한다.
 * `EVT_BTN_LONG`
-  * `new_motor_state`를 `MOTOR_STOP`으로 변경한다.
+  * `new_motor_state`를 `STOP`으로 변경한다.
 * `EVT_UART`
-  * `'f'`: `new_motor_state`를 `MOTOR_CW`로 변경한다.
-  * `'r'`: `new_motor_state`를 `MOTOR_CCW`로 변경한다.
-  * `'s'`: `new_motor_state`를 `MOTOR_STOP`으로 변경한다.
+  * `'f'`: `new_motor_state`를 `CW`로 변경한다.
+  * `'r'`: `new_motor_state`를 `CCW`로 변경한다.
+  * `'s'`: `new_motor_state`를 `STOP`으로 변경한다.
   * `'0'`~`'9'`: `new_motor_speed`를 해당 Duty 단계로 변경한다.
 
-호출 시점: 메인 루프에서 `button_event != EVT_NONE`일 때 호출한다.
+호출 시점: 메인 루프에서 `event != EVT_NONE`일 때 호출한다.
 
-#### 5-2-3. `drive_motor()`
+#### 5-2-3. `Drive_motor()`
 
 현재 상태와 목표 상태를 비교하여 변경된 값만 하드웨어에 반영한다.
 
@@ -186,6 +187,6 @@ typedef enum
 
 | ISR | 발생 조건 | 변경 변수 | 처리 내용 |
 |---|---|---|---|
-| `EXTI15_10_IRQHandler()` | PC13 버튼의 falling/rising edge | `btn_flag` | `btn_flag`를 `1`로 설정 |
+| `EXTI15_10_IRQHandler()` | PC13 버튼의 Falling/Rising edge | `Key_Pressed/Key_Released` | Falling edge -> Key_Pressesd(1) / Rising edge -> Key_Released(1) |
 | `USART2_IRQHandler()` | USART2 수신 인터럽트 | `uart_data`, `uart_flag` | 수신 문자를 저장하고 `uart_flag`를 `1`로 설정 |
 | `TIM5_IRQHandler()` | TIM5 3000ms 경과 |  | 3초마다 timeout 발생 |
