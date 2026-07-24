@@ -1,6 +1,6 @@
 # 모터 제어 상위 개발서 작성
 
-> **조원:** 신유지, 이호연, 이양배, 한소영
+> **조원:** 신유지, 이호윤, 이양배, 한소영
 
 * 구현 전 간단한 상위 개발 계획서(`Group3_motor.md`)를 작성
 * **요구사항(상태, 이벤트, 변수, 함수) 정의, 모듈 설계, 예외 처리 및 제어**를 사전에 검증
@@ -26,5 +26,5 @@
 ---
 
 신유지 : https://github.com/shinyuji  
-이호연 : https://github.com/nooyoh  
+이호윤 : https://github.com/nooyoh  
 한소영 : https://github.com/hsy1030h-wq
