@@ -128,12 +128,12 @@ typedef struct Button
 | `button_event` | `event_t` | `EVT_NONE` | 현재 이벤트 저장 | BUTTON, UART 인터럽트 발생시`check_event()` 에서 갱신|
 | `motor_state` | `motor_state_t` | `MOTOR_STOP` | 현재 모터 상태 저장 | `drive_motor()`에서 모터 상태 변경 시 갱신 |
 | `new_motor_state` | `motor_state_t` | `MOTOR_STOP` | 새로운 모터 회전 저장 | `update_motor_state()`에서 이벤트 처리 시 갱신 |
-| `motor_speed` | uint8_t | `5` | 현재 PWM Duty 레벨 (0~9) | `drive_motor()`에서 모터 상태 변경 시 갱신 |
-| `new_motor_speed` | uint8_t | `5` | 새로운 PWM Duty 레벨 (0~9) | `update_motor_state()`에서 이벤트 처리 시 갱신 |
-| `btn_flag` | volatile uint8_t | `0` | 버튼 인터럽트 (falling edge/rising edge) 발생 여부 | Button_ISR에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
-| `uart_flag` | volatile uint8_t | `0` | UART 인터럽트 발생 여부 | `USART2_IRQHandler()`에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
-| `uart_data` | volatile uint8_t | `0` | UART로 수신된 문자 | `USART2_IRQHandler()`에서 수신 시 갱신 |
-| `timer_flag` | volatile uint8_t | `0` | 타이머 인터럽트 발생 여부  | `TIM4_IRQHandler()`에서 갱신 |
+| `motor_speed` | `uint8_t` | `5` | 현재 PWM Duty 레벨 (0~9) | `drive_motor()`에서 모터 상태 변경 시 갱신 |
+| `new_motor_speed` | `uint8_t` | `5` | 새로운 PWM Duty 레벨 (0~9) | `update_motor_state()`에서 이벤트 처리 시 갱신 |
+| `btn_flag` | `volatile uint8_t` | `0` | 버튼 인터럽트 (falling edge/rising edge) 발생 여부 | `EXTI15_10_IRQHandler()`에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
+| `uart_flag` | `volatile uint8_t` | `0` | UART 인터럽트 발생 여부 | `USART2_IRQHandler()`에서 1로 세팅 → `check_event()`에서 읽은 직후 0으로 리셋 |
+| `uart_data` | `volatile uint8_t` | `0` | UART로 수신된 문자 | `USART2_IRQHandler()`에서 수신 시 갱신 |
+| `timer_flag` | `volatile uint8_t` | `0` | 타이머 인터럽트 발생 여부  | `TIM4_IRQHandler()`에서 갱신 |
 
 ## 5. METHOD
 
